@@ -33,4 +33,9 @@ setup(name='pysinfo',
                         "GPUtil",
                         "colorama"
                          ],
+      entry_points={
+          "console_scripts": [
+              "pysinfo=pysinfo.__main__:print_system_info",
+          ]
+      },
      )
