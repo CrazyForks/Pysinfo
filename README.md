@@ -2,7 +2,7 @@
 
 PySInfo: A python command line tool that displays information about the current system, including hardware and critical software.
 
-version 1.0
+version 1.1
 
 ## Installation
 
@@ -39,7 +39,7 @@ llllllllllllll  lllllllllllllllllll
 llllllllllllll  lllllllllllllllllll    Hardware:
 llllllllllllll  lllllllllllllllllll    CPU Model: AMD Ryzen 9 7945HX with Radeon Graphics
                                        CPU Architecture: AMD64
-llllllllllllll  lllllllllllllllllll    CPU Current Freq: 2501.0
+llllllllllllll  lllllllllllllllllll    CPU Current Freq: 2501.1
 llllllllllllll  lllllllllllllllllll    CPU Cores: 16 (Physical), 32 (Logical)
 llllllllllllll  lllllllllllllllllll    CPU Usage: 5.9%
 llllllllllllll  lllllllllllllllllll    GPU: NVIDIA GeForce RTX 4060 Laptop GPU (8.00 GB)
