@@ -1,4 +1,4 @@
 psutil
 distro
-GPUtil
+GPUtil-fix
 colorama

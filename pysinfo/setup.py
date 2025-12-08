@@ -30,7 +30,7 @@ setup(name='pysinfo',
       install_requires=[ 
                         "psutil",
                         "distro",
-                        "GPUtil",
+                        "GPUtil-fix",
                         "colorama"
                          ],
       entry_points={
