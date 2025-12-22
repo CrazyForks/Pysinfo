@@ -23,6 +23,9 @@ def get_system_info():
     # OS Information
     if platform.system() == "Windows":
         info["os"] = f"{platform.system()} {platform.version()}"
+    elif platform.system() == "Darwin":
+        mac_ver = platform.mac_ver()[0]
+        info["os"] = f"macOS {mac_ver}"
     else:
         info["os"] = f"{distro.name()} {distro.version()}"
     
@@ -66,9 +69,19 @@ def get_system_info():
         else:
             info["gpu"] = "No dedicated GPU detected"
             info["cuda"] = "Not available"
-    except Exception as e:
-        info["gpu"] = "GPU information unavailable"
-        info["cuda"] = "Not detected"
+    except Exception:
+        if platform.system() == "Darwin":
+            result = subprocess.run(
+                ["system_profiler", "SPDisplaysDataType"],
+                capture_output=True,
+                text=True
+            )
+            matches = re.findall(r"Chipset Model:\s+(.*)", result.stdout)
+            info["gpu"] = " | ".join(matches) if matches else "Apple GPU"
+            info["cuda"] = "Not supported on macOS"
+        else:
+            info["gpu"] = "GPU information unavailable"
+            info["cuda"] = "Not detected"
     
     # Check OpenCL support
     info["opencl"] = check_opencl_version()
@@ -186,6 +199,42 @@ def get_detailed_cpu_info():
                     cpu_info["process"] = "Intel 7 (10nm)"
                 elif "13th" in model or "13" in model or "14th" in model or "14" in model:
                     cpu_info["process"] = "Intel 7 (10nm)"
+        elif platform.system() == "Darwin":
+            # CPU model
+            result = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                cpu_info["model"] = result.stdout.strip()
+            else:
+                # Apple Silicon fallback
+                result = subprocess.run(
+                    ["sysctl", "-n", "hw.model"],
+                    capture_output=True,
+                    text=True
+                )
+                cpu_info["model"] = result.stdout.strip()
+
+            # CPU frequency
+            result = subprocess.run(
+                ["sysctl", "-n", "hw.cpufrequency"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip().isdigit():
+                cpu_info["frequency"] = f"{int(result.stdout.strip()) / 1e9:.2f} GHz"
+
+            # Cache (best effort)
+            l2 = subprocess.run(["sysctl", "-n", "hw.l2cachesize"], capture_output=True, text=True)
+            l3 = subprocess.run(["sysctl", "-n", "hw.l3cachesize"], capture_output=True, text=True)
+            if l2.stdout.strip().isdigit() or l3.stdout.strip().isdigit():
+                cpu_info["cache"] = f"L2: {int(l2.stdout)/1024/1024:.1f} MB, L3: {int(l3.stdout)/1024/1024:.1f} MB"
+
+            # Apple Silicon process size
+            if platform.machine() == "arm64":
+                cpu_info["process"] = "5nm / 3nm (Apple Silicon)"
         else:
             # For Linux systems
             if os.path.exists("/proc/cpuinfo"):
@@ -450,6 +499,12 @@ def get_detailed_memory_info():
                         pass
                 except:
                     pass
+        elif platform.system() == "Darwin":
+            mem = psutil.virtual_memory()
+            memory_info["slots"] = "Unified Memory"
+            memory_info["type"] = "LPDDR (Apple Silicon)" if platform.machine() == "arm64" else "DDR"
+            memory_info["speed"] = "Unified (SoC)"
+            memory_info["timings"] = "N/A"        
         else:
             # The Linux section remains the same
             # For Linux systems
@@ -520,6 +575,8 @@ def check_opencl_version():
                 for line in result.stdout.split('\n'):
                     if "OpenCL" in line:
                         return line.strip()
+        if platform.system() == "Darwin":
+            return "OpenCL supported (Apple framework)" # Apple provides OpenCL support natively, but clinfo is usually not installed.
         else:
             # For Linux
             if os.path.exists("/usr/bin/clinfo"):
@@ -538,6 +595,8 @@ def check_vulkan_version():
         # Try to detect Vulkan with vulkaninfo
         if platform.system() == "Windows":
             result = subprocess.run(["vulkaninfo", "--summary"], capture_output=True, text=True)
+        if platform.system() == "Darwin":
+            return "OpenCL supported (Apple framework)"
         else:
             result = subprocess.run(["vulkaninfo"], capture_output=True, text=True)
         
@@ -555,19 +614,24 @@ def check_vulkan_version():
 def get_uptime():
     if platform.system() == "Windows":
         boot_time = datetime.datetime.fromtimestamp(psutil.boot_time())
-        now = datetime.datetime.now()
-        uptime = now - boot_time
-        days, remainder = divmod(uptime.total_seconds(), 86400)
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes"
+    elif platform.system() == "Darwin":
+        result = subprocess.run(
+            ["sysctl", "-n", "kern.boottime"],
+            capture_output=True,
+            text=True
+        )
+        match = re.search(r"sec = (\d+)", result.stdout)
+        boot_time = datetime.datetime.fromtimestamp(int(match.group(1))) if match else datetime.datetime.now()
     else:
         with open('/proc/uptime', 'r') as f:
             uptime_seconds = float(f.readline().split()[0])
-            days, remainder = divmod(uptime_seconds, 86400)
-            hours, remainder = divmod(remainder, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes"
+            boot_time = datetime.datetime.now() - datetime.timedelta(seconds=uptime_seconds)
+
+    uptime = datetime.datetime.now() - boot_time
+    days, remainder = divmod(uptime.total_seconds(), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes"
 
 def bytes_to_readable(bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
