@@ -596,7 +596,7 @@ def check_vulkan_version():
         if platform.system() == "Windows":
             result = subprocess.run(["vulkaninfo", "--summary"], capture_output=True, text=True)
         if platform.system() == "Darwin":
-            return "OpenCL supported (Apple framework)"
+            return "Not supported (use MoltenVK)"
         else:
             result = subprocess.run(["vulkaninfo"], capture_output=True, text=True)
         
