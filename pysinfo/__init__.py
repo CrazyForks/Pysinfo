@@ -2,7 +2,7 @@
 PySInfo: A python command line tool that displays information about the current system, including hardware and critical software.
 version 1.3.0
 """
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 
 import platform
 import psutil
@@ -95,7 +95,10 @@ def get_system_info():
     info["disk"] = f"{bytes_to_readable(disk.used)} / {bytes_to_readable(disk.total)} ({disk.percent}%)"
     
     # Network Information
-    info["ip_address"] = socket.gethostbyname(socket.gethostname())
+    try:
+        info["ip_address"] = socket.gethostbyname(socket.gethostname())
+    except socket.gaierror:
+        info["ip_address"] = "Not detected"
     
     # Shell Information
     if platform.system() == "Windows":
